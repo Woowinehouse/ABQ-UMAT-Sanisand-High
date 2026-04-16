@@ -1,0 +1,155 @@
+# ref: https://clangd.llvm.org/config
+# should create project-specific configuration in the root folder
+
+If:
+  PathMatch: [.*\.c, .*\.h, .*\.cpp, .*\.hpp, .*\.cc, .*\.hh]
+CompileFlags:
+  Add:
+    - -std:c++20
+    - -D_CRT_SECURE_NO_WARNINGS
+    - -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
+    - -DWIN32
+    - -D_WINDOWS
+    - -U__OBJC__
+    - -W3
+    - -GR
+    - -EHsc
+    - -MTd
+    - -Zi
+    - -Ob0
+    - -Od
+    - -RTC1
+    - -W4
+    - -WX-
+    - -wd4819
+    - -wd5109
+    - -Zc:preprocessor
+    # Abaqus 路径
+    - -IE:/ABAQUS2025/product/win_b64/code/include
+    - -IE:/ABAQUS2025/product
+    # libtorch
+    - -ID:/libtorch/libtorch_cpus_2_11_0_release/include
+    - -ID:/libtorch/libtorch_cpus_2_11_0_release/include/torch/csrc/api/include
+    # gtest 路径
+    - -IF:/VScode2026/Sanisand-high-cpp/third_party/googletest/googletest/include
+    # mimalloc 路径
+    - -IF:/VScode2026/Sanisand-high-cpp/third_party/mimalloc/include
+    # 添加MSVC系统头文件路径
+    - -ID:/LLVM/include
+    - -IE:/VS2022/VC/Tools/MSVC/14.44.35207/include
+    - -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt
+    - -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared
+    - -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um
+    - -IC:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/winrt
+    # 添加项目下的路径
+    - -IF:/VScode2026/ABQ-UMAT-Sanisand-High/src/cpp
+    - -IF:/VScode2026/Sanisand-high-cpp/tests
+  Remove:
+    - -std*
+  Compiler: clang-cl
+Style:
+  QuotedHeaders: ["src/.*"]
+  AngledHeaders: ["third_party/.*", "3rd/.*"]
+
+---
+If:
+  PathMatch: $^
+  PathExclude: .*
+CompileFlags:
+  Add:
+    - -std=[c++23/c17]
+    - -x[c++/c++-header/c/c-header]
+    - -isystem-after "absolute/include/path"
+    - -D KEY=VALUE
+  Remove:
+    - -std*
+    - -x*
+  Compiler: clang[/++]
+Style:
+  QuotedHeaders: ["src/.*"]
+  AngledHeaders: ["third-party/.*"]
+
+# # c source
+# If:
+#   PathMatch: .*\.c
+# CompileFlags:
+#   Add:
+#     - -std=c17
+#     - -xc
+#   Remove:
+#     - -std
+#     - -x*
+#   Compiler: clang
+
+# # c header
+# If:
+#   PathMatch: .*\.h
+# CompileFlags:
+#   Add:
+#     - -std=c17
+#     - -xc-header
+#   Remove:
+#     - -std
+#     - -x*
+#   Compiler: clang
+
+---
+# global configuration
+
+Index:
+  Background: Build
+  StandardLibrary: false
+
+CompilationDatabase:
+  PreamblePolicy: Skip
+Diagnostics:
+  UnusedIncludes: Strict
+  ClangTidy:
+    Add:
+    [
+    # 1. 先禁用所有，从一个干净的环境开始
+    # 2. 【核心】启用 C++ 核心准则，学习编写正确的C++
+      "cppcoreguidelines-*",
+    # 3. 【安全】启用所有“易错问题”检查，避免常见Bug
+      "bugprone-*",
+
+    # 4. 【学习】启用所有“代码现代化”检查，学习现代C++语法
+      "modernize-*",
+    ]
+    Remove:
+    [
+      "bugprone-easily-swappable-parameters",
+      "cppcoreguidelines-pro-bounds-pointer-arithmetic", # 允许指针运算
+      "cppcoreguidelines-avoid-magic-numbers", # 允许数字
+      "cppcoreguidelines-avoid-c-arrays", # 允许C风格数组
+      "cppcoreguidelines-pro-bounds-constant-array-index", # 允许常量数组下标
+      "modernize-avoid-c-arrays", # 允许C风格数组
+      "cppcoreguidelines-owning-memory", # 允许裸指针管理内存
+      "cppcoreguidelines-avoid-non-const-global-variables", # 允许非常量全局变量
+      "cppcoreguidelines-pro-type-cstyle-cast", # 允许C风格强制转换 # 关闭dllimport/export警告
+      "cppcoreguidelines-non-private-member-variables-in-classes", # 允许类中非私有成员变量
+      "cppcoreguidelines-pro-type-vararg", # 允许调用C风格的可变参数函数
+    ]
+    # CheckOptions:
+    #   readability-identifier-naming.VariableCase: CamelCase
+    FastCheckFilter: Loose
+
+  Includes:
+    IgnoreHeader: ["torch/torch.h"]
+    AnalyzeAngledIncludes: false
+  MissingIncludes: Strict
+Completion:              # 代码补全设置部分
+  AllScopes: true        # 启用所有作用域的代码补全
+InlayHints:              # 代码提示设置部分
+  Enabled: true          # 启用代码提示
+  ParameterNames: true   # 显示参数名称提示
+  DeducedTypes: true     # 显示推断类型提示
+  Designators: true      # 显示设计器提示
+Hover:
+  ShowAKA: true
+
+SemanticTokens:
+  DisabledKinds: []
+  DisabledModifiers: [
+    "Static",
+    "Abstract"]

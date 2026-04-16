@@ -1,0 +1,116 @@
+{
+  "version": 8,
+  "configurePresets": [
+    {
+      "name": "VS2022-release",
+      "displayName": "VS2022-release",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build-vs2022",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION": "10.0.22621.0",
+        "CMAKE_SYSTEM_VERSION": "10.0.22621.0",
+        "CMAKE_CXX_COMPILER": "clang",
+        "USE_MIMALLOC": "OFF",
+        "BUILD_TESTING": "OFF",
+        "CMAKE_PREFIX_PATH": "F:/VScode2026/Sanisand-high-cpp/third_party/libtorch_cpu_2_11_0"
+      },
+      "toolset": {
+        "value": "v143",
+        "strategy": "external"
+      },
+      "architecture": "x64"
+    },
+    {
+      "name": "VS2022-debug",
+      "displayName": "VS2022-debug",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build-vs2022",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION": "10.0.26100.0",
+        "CMAKE_SYSTEM_VERSION": "10.0.26100.0",
+        "CMAKE_CXX_COMPILER": "clang",
+        "USE_MKL": "ON",
+        "USE_MIMALLOC": "ON",
+        "BUILD_TESTING": "OFF",
+        "LIBTORCH_PATH": "F:/VScode2026/Sanisand-high-cpp/third_party/libtorch_cpu_2_11_0",
+        "ABAQUS_PATHS": "E:/ABAQUS2025",
+        "USE_ABAQUS": "ON",
+        "STRICT": "ON"
+      },
+      "toolset": {
+        "value": "v143",
+        "strategy": "external"
+      },
+      "architecture": "x64"
+    },
+    {
+      "name": "VS2026-debug",
+      "displayName": "VS2026-debug",
+      "generator": "Visual Studio 18 2026",
+      "binaryDir": "${sourceDir}/build-vs2026",
+      "architecture": "x64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "USE_MKL": "ON",
+        "USE_MIMALLOC": "ON",
+        "BUILD_TESTING": "OFF",
+        "LIBTORCH_PATH": "F:/VScode2026/Sanisand-high-cpp/third_party/libtorch_cpu_2_11_0",
+        "ABAQUS_PATHS": "E:/ABAQUS2025",
+        "USE_ABAQUS": "ON",
+        "STRICT": "ON"
+      },
+      "toolset": {
+        "value": "v144",
+        "strategy": "external"
+      }
+    },
+    {
+      "name": "VS2026-release",
+      "displayName": "VS2026-release",
+      "generator": "Visual Studio 18 2026",
+      "binaryDir": "${sourceDir}/build-vs2026",
+      "architecture": "x64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION": "10.0.26100.0",
+        "USE_MIMALLOC": "ON",
+        "BUILD_TESTING": "OFF",
+        "USER_LIBTORCH_ROOT": "D:/libtorch/libtorch_cpus_2_11_0_release",
+        "USER_ONEAPI_ROOT": "E:/oneapi2025",
+        "ABAQUS_PATHS": "E:/ABAQUS2025",
+        "USE_ABAQUS": "ON",
+        "STRICT": "OFF",
+        "BUILD_CXX": "ON",
+        "BUILD_FORTRAN": "ON"
+      },
+      "toolset": {
+        "value": "v145",
+        "strategy": "external"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vs2026-debug-build",
+      "configurePreset": "VS2026-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2026-release-build",
+      "configurePreset": "VS2026-release",
+      "configuration": "release"
+    },
+    {
+      "name": "vs2022-release-build",
+      "configurePreset": "VS2022-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2022-debug-build",
+      "configurePreset": "VS2022-debug",
+      "configuration": "Debug"
+    }
+  ]
+}
