@@ -31,6 +31,16 @@ constexpr inline auto is_valid_state(utils::StressState state) noexcept -> bool 
 MYUMAT_API inline auto has_same_state_(utils::StressState lhs, utils::StressState rhs) -> bool {
   return lhs == rhs;
 }
+/**
+ * @brief Stress tensor wrapper class with state information
+ *
+ * This class wraps a 3x3 PyTorch tensor with additional stress state metadata
+ * (PlaneStress, PlaneStrain, ThreeDStress). It provides tensor operations,
+ * validation, and conversion utilities for UMAT constitutive modeling.
+ *
+ * The class manages tensor memory using PyTorch's reference counting and
+ * provides both safe and unsafe access methods for performance optimization.
+ **/
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class MYUMAT_API StressTensor {
   // friendly classes
@@ -70,28 +80,57 @@ class MYUMAT_API StressTensor {
 #endif
   }
 
-  // @brief
+  /**
+   * @brief Copy constructor
+   * @param other StressTensor to copy from
+   */
   StressTensor(const StressTensor &other) = default;
-  //
+
+  /**
+   * @brief Move constructor
+   * @param other StressTensor to move from
+   */
   StressTensor(StressTensor &&other) noexcept { swap(*this, other); }
   ///@}
-  /// @brief deconstructor
+  /// @brief Destructor
   ~StressTensor() = default;
 
   [[nodiscard]] static auto create(Tensor tensor, State stress_state) -> StressTensor;
   [[nodiscard]] static auto create(utils::data_t oneElt, State stress_state) -> StressTensor;
   ///@name operator
   /// @{
-  // @brief copy assignment
+  /**
+   * @brief Copy assignment operator (copy-and-swap idiom)
+   * @param other StressTensor to assign from
+   * @return Reference to this StressTensor
+   */
   auto operator=(StressTensor other) -> StressTensor & {
     swap(*this, other);
     return *this;
   }
-  // @brief 访问符
+
+  /**
+   * @brief Arrow operator for const access
+   * @return Const pointer to underlying tensor
+   */
   auto operator->() const -> const Tensor * { return &tensor_; }
+
+  /**
+   * @brief Arrow operator for mutable access
+   * @return Pointer to underlying tensor
+   */
   auto operator->() -> Tensor * { return &tensor_; }
-  // @brief 解引用
+
+  /**
+   * @brief Dereference operator for const access
+   * @return Const reference to underlying tensor
+   */
   auto operator*() const -> const Tensor & { return tensor_; }
+
+  /**
+   * @brief Dereference operator for mutable access
+   * @return Reference to underlying tensor
+   */
   auto operator*() -> Tensor & { return tensor_; }
   // unary operator
   auto operator-() const -> StressTensor { return minus(); }
@@ -131,15 +170,61 @@ class MYUMAT_API StressTensor {
 
   /// @name getters
   /// @{
-  // 获取自定义元数据
+  /**
+   * @brief Get const data pointer to underlying tensor
+   * @return Const void pointer to tensor data
+   */
   [[nodiscard]] auto get_data_ptr() const -> const void * { return tensor_.const_data_ptr(); }
+
+  /**
+   * @brief Get mutable data pointer to underlying tensor
+   * @warning This bypasses const-correctness for performance
+   * @return Mutable void pointer to tensor data
+   */
   [[nodiscard]] auto mutable_get_data_ptr() const -> void * { return tensor_.data_ptr(); }
+
+  /**
+   * @brief Get stress state (PlaneStress, PlaneStrain, ThreeDStress)
+   * @return Stress state enum value
+   */
   [[nodiscard]] auto get_state() const noexcept -> State { return state_; }
+
+  /**
+   * @brief Get mutable reference to underlying tensor (unsafe)
+   * @warning This bypasses copy-on-write and directly modifies the internal tensor
+   * @return Mutable reference to tensor
+   */
   [[nodiscard]] auto unsafe_get_tensor() noexcept -> Tensor & { return tensor_; }
+
+  /**
+   * @brief Get const reference to underlying tensor
+   * @return Const reference to tensor
+   */
   [[nodiscard]] auto get_tensor() const noexcept -> const Tensor & { return tensor_; }
+
+  /**
+   * @brief Get device of underlying tensor (CPU/CUDA)
+   * @return torch::Device object
+   */
   [[nodiscard]] auto device() const noexcept -> torch::Device { return tensor_.device(); }
+
+  /**
+   * @brief Get mutable pointer to underlying tensor (unsafe)
+   * @warning This bypasses copy-on-write
+   * @return Mutable pointer to tensor
+   */
   [[nodiscard]] auto unsafe_tensor_ptr() noexcept -> Tensor * { return &tensor_; }
+
+  /**
+   * @brief Get const pointer to underlying tensor
+   * @return Const pointer to tensor
+   */
   [[nodiscard]] auto tensor_ptr() const noexcept -> const Tensor * { return &tensor_; }
+
+  /**
+   * @brief Get reference count of underlying tensor
+   * @return Number of shared references to the tensor
+   */
   [[nodiscard]] auto tensor_count() const noexcept -> size_t { return tensor_.use_count(); }
 
   /// @}
@@ -216,13 +301,17 @@ MYUMAT_API inline auto allclose(const StressTensor &lhs, const StressTensor &rhs
 
 namespace detail {
 /**
- * @brief
- * @tparam T
- * @param  arr
- * @param  state
- * @param  scalar
+ * @brief Core function to create StressTensor from raw array
+ * @tparam Dtype Data type (float/double)
+ * @param arr Input array containing stress components
+ * @param state Stress state (determines array layout)
+ * @param scalar Scaling factor for shear components (default 1.0)
+ * @return StressTensor object
  *
- * @return StressTensor
+ * Converts raw array data to symmetric 3x3 stress tensor based on stress state:
+ * - PlaneStress: σ₀₀, σ₁₁, σ₀₁
+ * - PlaneStrain: σ₀₀, σ₁₁, σ₂₂, σ₀₁
+ * - ThreeDStress: σ₀₀, σ₁₁, σ₂₂, σ₀₁, σ₀₂, σ₁₂
  **/
 template <typename Dtype>
 inline auto make_StressTensor_core(Dtype *arr, utils::StressState state, double scalar = 1.0)
@@ -269,6 +358,17 @@ inline auto make_StressTensor_core(Dtype *arr, utils::StressState state, double 
                     .clone(); // clone 避免依赖栈内存
   return StressTensor(tensor, state);
 }
+/**
+ * @brief Core function to convert StressTensor to raw array
+ * @tparam Dtype Data type (float/double)
+ * @param arr Output array to fill
+ * @param arr_size Size of output array
+ * @param tensor Input StressTensor
+ * @param scalar Scaling factor for shear components (default 1.0)
+ *
+ * Extracts stress components from symmetric 3x3 tensor to array based on stress state.
+ * Performs bounds checking and type validation.
+ **/
 template <typename Dtype>
 inline auto convert_tensor_to_array_core(Dtype *arr, int arr_size, const StressTensor &tensor,
                                          double scalar = 1.0) -> void {
@@ -310,6 +410,16 @@ inline auto convert_tensor_to_array_core(Dtype *arr, int arr_size, const StressT
                 utils::stress_state_to_string(state));
   }
 }
+/**
+ * @brief Core function to convert 4th-order tensor to raw array
+ * @tparam Dtype Data type (float/double)
+ * @param arr Output array to fill
+ * @param arr_size Size of output array
+ * @param tensor4 Input 4th-order stress tensor
+ *
+ * Converts 4th-order stiffness tensor to Voigt notation array.
+ * Used for elastic stiffness matrix Dᵉ in constitutive relations.
+ **/
 template <typename Dtype>
 inline auto convert_tensor4_to_array_core(Dtype *arr, int arr_size, const StressTensor &tensor4)
     -> void {
