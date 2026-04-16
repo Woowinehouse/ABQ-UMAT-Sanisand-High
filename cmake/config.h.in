@@ -1,0 +1,14 @@
+#ifndef UTILS_CONFIG_H
+#define UTILS_CONFIG_H
+
+// paths
+#define LIBTORCH_LIB_PATH "@LIBTORCH_LIB_PATH@"
+// Build options
+#cmakedefine __ENABLE_DEBUG__
+#cmakedefine __USE_FORTRAN__
+#cmakedefine __GTEST__BUILD_
+#cmakedefine __STRICT_VALIDATION__
+
+#define STRICT_CHECK_ENABLED defined(__STRICT_VALIDATION__)
+#define DEBUG_SPAN_ENABLED (defined(__ENABLE_DEBUG__))
+#endif // UTILS_CONFIG_H

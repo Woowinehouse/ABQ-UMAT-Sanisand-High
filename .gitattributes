@@ -1,0 +1,48 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Fortran files
+*.f text
+*.f90 text
+*.for text
+*.ftn text
+
+# C/C++ files
+*.c text
+*.cpp text
+*.h text
+*.hpp text
+
+# CMake files
+CMakeLists.txt text
+*.cmake text
+
+# Script files
+*.py text
+*.sh text
+*.bat text
+*.cmd text
+
+# Configuration files
+*.env text
+*.cfg text
+*.in text
+*.txt text
+*.md text
+
+# Binary files should not be modified
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.so binary
+*.dll binary
+*.exe binary
+*.o binary
+*.obj binary
+*.mod binary
+*.smod binary
