@@ -686,6 +686,65 @@ auto Pfpsigma_::call(const core::impl::ShareVarImpl &shvarImpl, ErrorCode *err) 
 }
 /**
  * @brief
+ * @param  shvarImpl
+ * @param  voidr
+ * @param  options
+ * @param  err
+ * @param  epsilon
+ *
+ * @return torch::Tensor
+ **/
+template <bool return_pair>
+auto Pgpsigma_::call(const core::impl::ShareVarImpl &shvarImpl, utils::data_t voidr,
+                     const core::PlasticOptions &options, ErrorCode *err, utils::data_t epsilon)
+    -> std::conditional_t<return_pair, torch::Tensor, pair_tensor> {
+  using namespace utils;
+  auto stress = shvarImpl.get_stress_tensor();
+  auto alpha = shvarImpl.get_alpha_tensor();
+  auto delta = torch::eye(3);
+  auto norm = LoadingDirection_::call<true>(shvarImpl, err, epsilon);
+  auto dot_norm = matmul(norm, norm);
+  auto ratio = StressRatio_::call<true>(stress, err, epsilon);
+  auto cos3t = Cos3theta_::call<true>(shvarImpl, err, epsilon);
+  const auto &[gtheta, pgcos3t] = Calc_gtheta_::call<true, true>(shvarImpl, err, epsilon);
+  const auto &[dpla, X_alpha] = Dilatancy_::call<true>(shvarImpl, voidr, options, err, epsilon);
+  auto dgdth = pgcos3t / gtheta;
+  auto B = 1.0 + 3.0 * cos3t * dgdth;
+  auto C = 3.0 * RAD6 * dgdth;
+  auto R_ = B * norm - C * (dot_norm - delta / 3.0);
+  auto Rnorm = R_ / R_.norm(2);
+  auto r_ef = sqrt(3.0 / 2.0 * sum((ratio - alpha) * (ratio - alpha)));
+  auto exprf = exp(-mat::v * r_ef);
+  auto Ep = RAD32 * Rnorm * r_ef + 3.0 / 2.0 * mat::x * ratio * exprf;
+  auto Ev = dpla * r_ef + X_alpha * exprf;
+  auto pgsig = Ep + Ev * delta / 3.0;
+#ifdef DEBUG_SPAN_ENABLED
+  auto ratio_view = std::span<data_t>(ratio.data_ptr<data_t>(), ratio.numel());
+  auto norm_view = std::span<data_t>(norm.data_ptr<data_t>(), norm.numel());
+  auto cos3t_view = std::span<data_t>(cos3t.data_ptr<data_t>(), cos3t.numel());
+  auto gtheta_view = std::span<data_t>(gtheta.data_ptr<data_t>(), gtheta.numel());
+  auto dot_norm_view = std::span<data_t>(dot_norm.data_ptr<data_t>(), dot_norm.numel());
+  auto pgcos3t_view = std::span<data_t>(pgcos3t.data_ptr<data_t>(), pgcos3t.numel());
+  auto dgdth_view = std::span<data_t>(dgdth.data_ptr<data_t>(), dgdth.numel());
+  auto dpla_view = std::span<data_t>(dpla.data_ptr<data_t>(), dpla.numel());
+  auto X_alpha_view = std::span<data_t>(X_alpha.data_ptr<data_t>(), X_alpha.numel());
+  auto B_view = std::span<data_t>(B.data_ptr<data_t>(), B.numel());
+  auto C_view = std::span<data_t>(C.data_ptr<data_t>(), C.numel());
+  auto R_view = std::span<data_t>(R_.data_ptr<data_t>(), R_.numel());
+  auto Rnorm_view = std::span<data_t>(Rnorm.data_ptr<data_t>(), Rnorm.numel());
+  auto r_ef_view = std::span<data_t>(r_ef.data_ptr<data_t>(), r_ef.numel());
+  auto exprf_view = std::span<data_t>(exprf.data_ptr<data_t>(), exprf.numel());
+  auto Ep_view = std::span<data_t>(Ep.data_ptr<data_t>(), Ep.numel());
+  auto Ev_view = std::span<data_t>(Ev.data_ptr<data_t>(), Ev.numel());
+  auto pgsig_view = std::span<data_t>(pgsig.data_ptr<data_t>(), pgsig.numel());
+#endif
+  if (!return_pair) {
+    return pgsig;
+  } else {
+  }
+}
+/**
+ * @brief
  * @tparam retain_map
  * @tparam Dtype
  * @param  self
@@ -865,51 +924,6 @@ auto Dilatancy_::call(const core::impl::ShareVarImpl &shvarImpl, utils::data_t v
   }
 }
 
-auto Pgpsigma_::call(const core::impl::ShareVarImpl &shvarImpl, utils::data_t voidr,
-                     const core::PlasticOptions &options, ErrorCode *err, utils::data_t epsilon)
-    -> torch::Tensor {
-  using namespace utils;
-  auto stress = shvarImpl.get_stress_tensor();
-  auto alpha = shvarImpl.get_alpha_tensor();
-  auto delta = torch::eye(3);
-  auto norm = LoadingDirection_::call<true>(shvarImpl, err, epsilon);
-  auto dot_norm = matmul(norm, norm);
-  auto ratio = StressRatio_::call<true>(stress, err, epsilon);
-  auto cos3t = Cos3theta_::call<true>(shvarImpl, err, epsilon);
-  const auto &[gtheta, pgcos3t] = Calc_gtheta_::call<true, true>(shvarImpl, err, epsilon);
-  const auto &[dpla, X_alpha] = Dilatancy_::call<true>(shvarImpl, voidr, options, err, epsilon);
-  auto dgdth = pgcos3t / gtheta;
-  auto B = 1.0 + 3.0 * cos3t * dgdth;
-  auto C = 3.0 * RAD6 * dgdth;
-  auto R_ = B * norm - C * (dot_norm - delta / 3.0);
-  auto Rnorm = R_ / R_.norm(2);
-  auto r_ef = sqrt(3.0 / 2.0 * sum((ratio - alpha) * (ratio - alpha)));
-  auto exprf = exp(-mat::v * r_ef);
-  auto Ep = RAD32 * Rnorm * r_ef + 3.0 / 2.0 * mat::x * ratio * exprf;
-  auto Ev = dpla * r_ef + X_alpha * exprf;
-  auto pgsig = Ep + Ev * delta / 3.0;
-#ifdef DEBUG_SPAN_ENABLED
-  auto ratio_view = std::span<data_t>(ratio.data_ptr<data_t>(), ratio.numel());
-  auto norm_view = std::span<data_t>(norm.data_ptr<data_t>(), norm.numel());
-  auto cos3t_view = std::span<data_t>(cos3t.data_ptr<data_t>(), cos3t.numel());
-  auto gtheta_view = std::span<data_t>(gtheta.data_ptr<data_t>(), gtheta.numel());
-  auto dot_norm_view = std::span<data_t>(dot_norm.data_ptr<data_t>(), dot_norm.numel());
-  auto pgcos3t_view = std::span<data_t>(pgcos3t.data_ptr<data_t>(), pgcos3t.numel());
-  auto dgdth_view = std::span<data_t>(dgdth.data_ptr<data_t>(), dgdth.numel());
-  auto dpla_view = std::span<data_t>(dpla.data_ptr<data_t>(), dpla.numel());
-  auto X_alpha_view = std::span<data_t>(X_alpha.data_ptr<data_t>(), X_alpha.numel());
-  auto B_view = std::span<data_t>(B.data_ptr<data_t>(), B.numel());
-  auto C_view = std::span<data_t>(C.data_ptr<data_t>(), C.numel());
-  auto R_view = std::span<data_t>(R_.data_ptr<data_t>(), R_.numel());
-  auto Rnorm_view = std::span<data_t>(Rnorm.data_ptr<data_t>(), Rnorm.numel());
-  auto r_ef_view = std::span<data_t>(r_ef.data_ptr<data_t>(), r_ef.numel());
-  auto exprf_view = std::span<data_t>(exprf.data_ptr<data_t>(), exprf.numel());
-  auto Ep_view = std::span<data_t>(Ep.data_ptr<data_t>(), Ep.numel());
-  auto Ev_view = std::span<data_t>(Ev.data_ptr<data_t>(), Ev.numel());
-  auto pgsig_view = std::span<data_t>(pgsig.data_ptr<data_t>(), pgsig.numel());
-#endif
-  return pgsig;
-}
 /**
  * @brief
  * @tparam retain_map
@@ -923,9 +937,8 @@ auto Pgpsigma_::call(const core::impl::ShareVarImpl &shvarImpl, utils::data_t vo
  **/
 template <bool retain_map>
 auto Evolution_Dkp_::call(const core::impl::ShareVarImpl &shvarImpl,
-                          const core::impl::StateVarImpl &stvarsImpl,
-                          const core::PlasticOptions &options, ErrorCode *err,
-                          utils::data_t epsilon)
+                          const core::impl::StateVarImpl &stvarsImpl, ErrorCode *err,
+                          utils::data_t epsilon, const core::PlasticOptions &options)
     -> std::tuple<torch::Tensor, torch::Tensor, Scalar_type<retain_map>> {
   using namespace utils;
   auto obj = shvarImpl.clone();
@@ -1166,17 +1179,17 @@ template MYUMAT_API auto
 Dilatancy_::call<false>(const core::impl::ShareVarImpl &shvarImpl, utils::data_t voidr,
                         const core::PlasticOptions &options = {}, ErrorCode *err = nullptr,
                         utils::data_t epsilon = 1e-12) -> std::pair<utils::data_t, utils::data_t>;
-template MYUMAT_API auto Evolution_Dkp_::call<true>(const core::impl::ShareVarImpl &shvarImpl,
-                                                    const core::impl::StateVarImpl &stvarsImpl,
-                                                    const core::PlasticOptions &options = {},
-                                                    ErrorCode *err = nullptr,
-                                                    utils::data_t epsilon = 1e-12)
+template MYUMAT_API auto
+Evolution_Dkp_::call<true>(const core::impl::ShareVarImpl &shvarImpl,
+                           const core::impl::StateVarImpl &stvarsImpl, ErrorCode *err = nullptr,
+                           utils::data_t epsilon = 1e-12, const core::PlasticOptions &options = {})
     -> std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>;
 template MYUMAT_API auto Evolution_Dkp_::call<false>(const core::impl::ShareVarImpl &shvarImpl,
                                                      const core::impl::StateVarImpl &stvarsImpl,
-                                                     const core::PlasticOptions &options = {},
+
                                                      ErrorCode *err = nullptr,
-                                                     utils::data_t epsilon = 1e-12)
+                                                     utils::data_t epsilon = 1e-12,
+                                                     const core::PlasticOptions &options = {})
     -> std::tuple<torch::Tensor, torch::Tensor, utils::data_t>;
 
 // Safe_divide_ 模板实例化

@@ -1,6 +1,8 @@
 #include "umat/math.h"
+#include "ATen/core/interned_strings.h"
 #include "ATen/ops/dot.h"
 #include "ATen/ops/einsum.h"
+#include "ATen/ops/inverse.h"
 #include "ATen/ops/norm.h"
 #include "ATen/ops/tensordot.h"
 #include "core/ShareVar.h"
@@ -9,11 +11,11 @@
 #include "core/StressTensor.h"
 #include "core/TensorOptions.h"
 #include "ops/Elastic.h"
+#include "ops/drift.h"
 #include "utils/base_config.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
-
 #include <span>
 #include <torch/csrc/autograd/generated/variable_factories.h>
 #include <torch/headeronly/util/Exception.h>
@@ -301,10 +303,12 @@ auto math::onyield(core::ShareVar &shvar, core::StateVar &stvar, const core::Str
     auto beta = BETA_COEFF * sqrt(SSTOL / rtol);
     if (rtol <= FTOLR) {
       // drift
-      auto is_success = math::drift_shareVar(shvar_avg, stvar_avg, noel, npt, err, epsilon);
-      if (is_success) {
+      auto dlamda = ops::drift_shareVar(shvar_avg, stvar_avg, noel, npt, err, epsilon, 8);
+
+      if (dlamda) {
         shvar = std::move(shvar_avg);
         stvar = std::move(stvar_avg);
+
         dempx.add_(dempx1, 0.5 * dt);
         dempx.add_(dempx2, 0.5 * dt);
         t += dt;
@@ -421,6 +425,20 @@ auto math::drift_along_radial_direction(const ShareVar &shvar, ErrorCode *err,
   auto state = shvar.get_state();
   auto dsigma = StressTensor(-dlamda * pfsig, state);
   return shvar.create_shvar_with_dstress(dsigma);
+}
+auto math::Consistent_stiffness_matrix(const ShareVar &shvar_aft, const StateVar &stvar_aft,
+                                       utils::data_t lamda, torch::Tensor stiff_for, ErrorCode *err,
+                                       utils::data_t epsilon) -> Tensor {
+  const auto voidr = stvar_aft.get_voidr();
+  auto pfsig = ops::pfpsigma(shvar_aft, err);
+  auto [pgsigma1_aft, pgsigma2_aft] = core::pgpsigma(shvar_aft, voidr);
+  auto delta = torch::eye(3);
+  auto delta_ik = delta.view({3, 1, 3, 1});
+  auto delta_jl = delta.view({1, 3, 1, 3});
+  auto delta_ijkl = delta_ik * delta_jl;
+  auto sitff_pgsig2 = tensordot(stiff_for, pgsigma2_aft, {2, 3}, {0, 1});
+  auto a = delta_ijkl + lamda * sitff_pgsig2;
+  auto E_star = aten::linalg_tensorsolve(a, stiff_for);
 }
 #ifdef __clang__
 #pragma clang diagnostic pop

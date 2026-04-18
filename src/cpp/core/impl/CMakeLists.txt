@@ -1,6 +1,6 @@
 # src/core/impl/CMakeLists.txt
 
-project(CXX_umat_core LANGUAGES CXX C)
+project(CXX_umat_ LANGUAGES CXX C)
 message(STATUS "======================================================================")
 
 if(BUILD_SHARED_LIBS)
@@ -32,11 +32,6 @@ target_sources(${PROJECT_NAME}
   impl/ShareVarImpl.cpp
   impl/StateVarImpl.cpp
   impl/TensorOptions_ops.cpp
-  PUBLIC
-  StressTensor.cpp
-  ShareVar.cpp
-  StateVar.cpp
-  auxiliary.cpp
 )
 
 # 4. Header file path

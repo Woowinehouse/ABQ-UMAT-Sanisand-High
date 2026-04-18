@@ -74,6 +74,10 @@ class MYUMAT_API math {
                                                          ErrorCode *err = nullptr,
                                                          utils::data_t epsilon = 1e-12)
       -> core::ShareVar;
+  [[nodiscard]] static auto Consistent_stiffness_matrix(const ShareVar &shvar,
+                                                        const StateVar &stvar, utils::data_t lamda,
+                                                        ErrorCode *err = nullptr,
+                                                        utils::data_t epsilon = 1e-12) -> Tensor;
 }; // class math
 
 } // namespace umat

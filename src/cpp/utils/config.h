@@ -4,7 +4,7 @@
 // paths
 #define LIBTORCH_LIB_PATH ""
 // Build options
-/* #undef __ENABLE_DEBUG__ */
+#define __ENABLE_DEBUG__
 #define __USE_FORTRAN__
 /* #undef __GTEST__BUILD_ */
 #define __STRICT_VALIDATION__

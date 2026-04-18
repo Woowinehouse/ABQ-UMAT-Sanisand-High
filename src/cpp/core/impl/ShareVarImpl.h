@@ -22,6 +22,17 @@ class StateVar;
 namespace impl {
 
 class ShareVarImpl;
+/**
+ * @brief Implementation class for shared variables in UMAT constitutive model
+ *
+ * This class encapsulates the core stress state variables used in plasticity models:
+ * - stress: Current Cauchy stress tensor σ
+ * - alpha: Back-stress tensor α (kinematic hardening)
+ * - p0: Reference pressure p₀ (isotropic hardening)
+ *
+ * The class uses intrusive pointer semantics for efficient memory management
+ * and provides mathematical operations for stress updates during plasticity integration.
+ */
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class MYUMAT_API ShareVarImpl : public c10::intrusive_ptr_target {
   using Tensor = torch::Tensor;
@@ -31,10 +42,10 @@ class MYUMAT_API ShareVarImpl : public c10::intrusive_ptr_target {
 
   private:
   // member
-  StressTensor stress_;
-  StressTensor alpha_;
-  StressTensor p0_;
-  bool is_lowstress = true;
+  StressTensor stress_;     ///< Current Cauchy stress tensor σ
+  StressTensor alpha_;      ///< Back-stress tensor α (kinematic hardening)
+  StressTensor p0_;         ///< Reference pressure p₀ (isotropic hardening)
+  bool is_lowstress = true; ///< Flag indicating low stress state (for numerical stability)
   //
   ShareVarImpl() = default;
 
@@ -49,25 +60,93 @@ class MYUMAT_API ShareVarImpl : public c10::intrusive_ptr_target {
   ~ShareVarImpl() = default;
   ///@name operators
   ///@{
-  // @brief 赋值操作
+  /**
+   * @brief Copy assignment (deleted - use intrusive pointers)
+   */
   auto operator=(const ShareVarImpl &other) -> ShareVarImpl & = delete;
+
+  /**
+   * @brief Move assignment (copy-and-swap idiom)
+   */
   auto operator=(ShareVarImpl other) && noexcept -> ShareVarImpl & {
     swap(*this, other);
     return *this;
   }
-  // minus
+
+  /**
+   * @brief Unary minus operator
+   * @return Negated ShareVarImpl (-stress, -alpha, -p0)
+   */
   auto operator-() const -> ShareVarImpl { return minus(); }
-  // add
+
+  /**
+   * @brief Addition operator
+   * @param rhs Right-hand side ShareVarImpl
+   * @return Sum of this and rhs
+   */
   auto operator+(const ShareVarImpl &rhs) const -> ShareVarImpl { return add(rhs); }
+
+  /**
+   * @brief Subtraction operator
+   * @param rhs Right-hand side ShareVarImpl
+   * @return Difference of this and rhs
+   */
   auto operator-(const ShareVarImpl &rhs) const -> ShareVarImpl { return sub(rhs); }
+
+  /**
+   * @brief Element-wise multiplication operator
+   * @param rhs Right-hand side ShareVarImpl
+   * @return Element-wise product of this and rhs
+   */
   auto operator*(const ShareVarImpl &rhs) const -> ShareVarImpl { return mul(rhs); }
+
+  /**
+   * @brief Element-wise division operator
+   * @param rhs Right-hand side ShareVarImpl
+   * @return Element-wise quotient of this and rhs
+   */
   auto operator/(const ShareVarImpl &rhs) const -> ShareVarImpl { return div(rhs); }
+
+  /**
+   * @brief Scalar division operator
+   * @param scalar Scalar divisor
+   * @return ShareVarImpl with all tensors divided by scalar
+   */
   auto operator/(data_t scalar) const -> ShareVarImpl { return div_scalar(scalar); }
+
+  /**
+   * @brief Scalar multiplication operator
+   * @param scalar Scalar multiplier
+   * @return ShareVarImpl with all tensors multiplied by scalar
+   */
   auto operator*(data_t scalar) const -> ShareVarImpl { return mul_scalar(scalar); }
-  // @brief 原地操作
+
+  /**
+   * @brief In-place addition operator
+   * @param other ShareVarImpl to add
+   * @return Reference to this after addition
+   */
   auto operator+=(const ShareVarImpl &other) -> ShareVarImpl & { return add_(other); }
+
+  /**
+   * @brief In-place subtraction operator
+   * @param other ShareVarImpl to subtract
+   * @return Reference to this after subtraction
+   */
   auto operator-=(const ShareVarImpl &other) -> ShareVarImpl & { return sub_(other); }
+
+  /**
+   * @brief In-place multiplication operator
+   * @param other ShareVarImpl to multiply
+   * @return Reference to this after multiplication
+   */
   auto operator*=(const ShareVarImpl &other) -> ShareVarImpl & { return mul_(other); }
+
+  /**
+   * @brief In-place division operator
+   * @param other ShareVarImpl to divide by
+   * @return Reference to this after division
+   */
   auto operator/=(const ShareVarImpl &other) -> ShareVarImpl & { return div_(other); }
 
   auto minus() const -> ShareVarImpl;
@@ -86,73 +165,173 @@ class MYUMAT_API ShareVarImpl : public c10::intrusive_ptr_target {
   ///@}
   ///@name Getters
   ///@{
-  /// @brief get the member class
-  // get data ptr
+  /**
+   * @brief Get const data pointers to underlying tensor data
+   */
   auto stress_data_ptr() const -> const void * { return stress_->const_data_ptr(); }
   auto alpha_data_ptr() const -> const void * { return alpha_->const_data_ptr(); }
   auto p0_data_ptr() const -> const void * { return p0_->const_data_ptr(); }
-  // get const data_ptr
+
+  /**
+   * @brief Get mutable data pointers to underlying tensor data (unsafe)
+   * @warning These methods bypass const-correctness for performance
+   */
   auto mutable_stress_data_ptr() const -> void * { return stress_->data_ptr(); }
   auto mutable_alpha_data_ptr() const -> void * { return alpha_->data_ptr(); }
   auto mutable_p0_data_ptr() const -> void * { return p0_->data_ptr(); }
 
+  /**
+   * @brief Get const references to stress tensors
+   */
   auto get_stress() const noexcept -> const StressTensor & { return stress_; };
   auto get_alpha() const noexcept -> const StressTensor & { return alpha_; };
   auto get_p0() const noexcept -> const StressTensor & { return p0_; };
+
+  /**
+   * @brief Get mutable references to stress tensors (unsafe)
+   * @warning These methods bypass copy-on-write and directly modify internal data
+   */
   auto unsafe_get_stress() -> StressTensor & { return stress_; };
   auto unsafe_get_alpha() -> StressTensor & { return alpha_; };
   auto unsafe_get_p0() -> StressTensor & { return p0_; };
-  // get tensor
+  /**
+   * @brief Get const references to underlying PyTorch tensors
+   */
   auto get_stress_tensor() const noexcept -> const Tensor & { return stress_.get_tensor(); };
   auto get_alpha_tensor() const noexcept -> const Tensor & { return alpha_.get_tensor(); };
   auto get_p0_tensor() const noexcept -> const Tensor & { return p0_.get_tensor(); };
+
+  /**
+   * @brief Get mutable references to underlying PyTorch tensors (unsafe)
+   * @warning These methods bypass copy-on-write
+   */
   auto unsafe_get_stress_tensor() noexcept -> Tensor & { return stress_.unsafe_get_tensor(); };
   auto unsafe_get_alpha_tensor() noexcept -> Tensor & { return alpha_.unsafe_get_tensor(); };
   auto unsafe_get_p0_tensor() noexcept -> Tensor & { return p0_.unsafe_get_tensor(); };
 
-  // @brief get the member ptr
+  /**
+   * @brief Get const pointers to stress tensor wrappers
+   */
   auto stress_ptr() const noexcept -> const StressTensor * { return &stress_; }
   auto alpha_ptr() const noexcept -> const StressTensor * { return &alpha_; }
   auto p0_ptr() const noexcept -> const StressTensor * { return &p0_; }
+
+  /**
+   * @brief Get mutable pointers to stress tensor wrappers (unsafe)
+   */
   auto unsafe_stress_ptr() -> StressTensor * { return &stress_; }
   auto unsafe_alpha_ptr() -> StressTensor * { return &alpha_; }
   auto unsafe_p0_ptr() -> StressTensor * { return &p0_; }
 
+  /**
+   * @brief Get const pointers to underlying PyTorch tensors
+   */
   auto stress_tensor_ptr() const noexcept -> const Tensor * { return stress_.tensor_ptr(); }
   auto alpha_tensor_ptr() const noexcept -> const Tensor * { return alpha_.tensor_ptr(); }
   auto p0_tensor_ptr() const noexcept -> const Tensor * { return p0_.tensor_ptr(); }
+
+  /**
+   * @brief Get mutable pointers to underlying PyTorch tensors (unsafe)
+   */
   auto unsafe_stress_tensor_ptr() -> Tensor * { return stress_.unsafe_tensor_ptr(); }
   auto unsafe_alpha_tensor_ptr() -> Tensor * { return alpha_.unsafe_tensor_ptr(); }
   auto unsafe_p0_tensor_ptr() -> Tensor * { return p0_.unsafe_tensor_ptr(); }
-  // use count
+
+  /**
+   * @brief Get reference counts of underlying tensors
+   */
   auto get_stress_count() const -> size_t { return stress_.tensor_count(); }
   auto get_alpha_count() const -> size_t { return alpha_.tensor_count(); }
   auto get_p0_count() const -> size_t { return p0_.tensor_count(); }
-  //
+
+  /**
+   * @brief Check if stress state is low (for numerical stability)
+   * @return True if stress magnitude is below threshold
+   */
   auto is_low_stress() const -> bool { return is_lowstress; }
+
+  /**
+   * @brief Get stress state (PlaneStress, PlaneStrain, ThreeDStress)
+   * @return Stress state enum value
+   */
   auto get_state() const -> State { return stress_.get_state(); }
   ///@}
   ///@name Setters
   ///@{
+  /**
+   * @brief Set stress tensor (swap semantics)
+   * @param stress New stress tensor
+   */
   auto set_stress(StressTensor stress) -> void { swap(stress_, stress); };
+
+  /**
+   * @brief Set back-stress tensor (swap semantics)
+   * @param alpha New back-stress tensor
+   */
   auto set_alpha(StressTensor alpha) -> void { swap(alpha_, alpha); };
+
+  /**
+   * @brief Set reference pressure tensor (swap semantics)
+   * @param p0 New reference pressure tensor
+   */
   auto set_p0(StressTensor p0) -> void { swap(p0_, p0); };
+
+  /**
+   * @brief Create new ShareVarImpl with stress increment
+   * @param dstress Stress increment tensor
+   * @return New ShareVarImpl with updated stress (σ + dσ)
+   */
   [[nodiscard]] auto create_shvar_with_dstress(StressTensor dstress) const
       -> core::impl::ShareVarImpl;
+
+  /**
+   * @brief Create new ShareVarImpl with completely new stress
+   * @param new_stress New stress tensor
+   * @return New ShareVarImpl with specified stress
+   */
   [[nodiscard]] auto create_shvar_from_new_stress(const StressTensor &new_stress) const
       -> core::impl::ShareVarImpl;
   ///@}
   /// @name update
   /// @{
+  /**
+   * @brief Update stress tensor with increment
+   * @param dstress Stress increment
+   */
   auto update_stress(const StressTensor &dstress) -> void { stress_ += dstress; };
+
+  /**
+   * @brief Update back-stress tensor with increment
+   * @param dalpha Back-stress increment
+   */
   auto update_alpha(const StressTensor &dalpha) -> void { alpha_ += dalpha; };
+
+  /**
+   * @brief Update reference pressure with increment
+   * @param dp0 Reference pressure increment
+   */
   auto update_p0(const StressTensor &dp0) -> void { p0_ += dp0; };
+
+  /**
+   * @brief Update all shared variables with increments
+   * @param dstress Stress increment
+   * @param dalpha Back-stress increment
+   * @param dp0 Reference pressure increment
+   */
   auto update_shareVarImpl(const StressTensor &dstress, const StressTensor &dalpha,
                            const StressTensor &dp0) -> void {
     stress_ += dstress;
     alpha_ += dalpha;
     p0_ += dp0;
   }
+
+  /**
+   * @brief Update all shared variables with raw tensor increments
+   * @param dstress Raw stress increment tensor
+   * @param dalpha Raw back-stress increment tensor
+   * @param dp0 Raw reference pressure increment tensor
+   * @param state Stress state for validation
+   */
   auto update_shareVarImpl(const torch::Tensor &dstress, const torch::Tensor &dalpha,
                            const torch::Tensor &dp0, utils::StressState state) -> void {
     STD_TORCH_CHECK(has_same_state_(get_state(), state),

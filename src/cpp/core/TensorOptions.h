@@ -449,12 +449,17 @@ template <bool retain_map = false>
  *
  * @return torch::Tensor Plastic potential gradient tensor ∂g/∂σ
  **/
-[[nodiscard]] MYUMAT_API inline auto pgpsigma(const core::ShareVar &shvar, utils::data_t voidr,
-                                              const core::PlasticOptions &options = {},
-                                              ErrorCode *err = nullptr,
-                                              utils::data_t epsilon = 1e-12) -> torch::Tensor {
+template <bool return_pair = false>
+[[nodiscard]] inline auto pgpsigma(const core::ShareVar &shvar, utils::data_t voidr,
+                                   const core::PlasticOptions &options = {},
+                                   ErrorCode *err = nullptr, utils::data_t epsilon = 1e-12)
+    -> std::conditional_t<return_pair, torch::Tensor, pair_tensor> {
   auto &shvarImpl = shvar.GetShareVarImpl();
-  return impl::Pgpsigma_::call(shvarImpl, voidr, options, err, epsilon);
+  if (return_pair) {
+    return impl::Pgpsigma_::call<true>(shvarImpl, voidr, options, err, epsilon);
+  } else {
+    return impl::Pgpsigma_::call<false>(shvarImpl, voidr, options, err, epsilon);
+  }
 }
 /**
  * @brief Calculate ψ_m parameter (dilatancy coefficient)

@@ -59,12 +59,10 @@
 #include <c10/util/Exception.h>
 #include <c10/util/overloaded.h>
 #include <torch/csrc/autograd/generated/variable_factories.h>
-
+#include <torch/optim/optimizer.h>
 // system include header
 #include <cmath>
-#include <torch/optim/optimizer.h>
 #include <utility>
-
 namespace umat {
 using namespace utils;
 using namespace torch;

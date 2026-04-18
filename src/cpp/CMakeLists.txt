@@ -21,7 +21,7 @@ FortranCInterface_VERIFY(CXX)
 if(BUILD_SHARED_LIBS)
   add_library(${PROJECT_NAME} SHARED) # create shared library
 else()
-  add_library(${PROJECT_NAME} STATIC) # create static library
+  add_library(${PROJECT_NAME}_static STATIC) # create static library
 endif()
 
 # 2. Specify the source file
